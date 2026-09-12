@@ -1,0 +1,37 @@
+{
+  "name": "restaurant-billing-backend",
+  "version": "1.0.0",
+  "main": "app.js",
+  "scripts": {
+    "dev": "nodemon app.js",
+    "start": "node app.js",
+    "db:dev": "node scripts/dev-db.mjs",
+    "db:migrate": "sequelize-cli db:migrate",
+    "db:migrate:undo": "sequelize-cli db:migrate:undo",
+    "db:seed:all": "sequelize-cli db:seed:all",
+    "create-super-admin": "node utils/scripts/createSuperAdmin.js"
+  },
+  "license": "ISC",
+  "dependencies": {
+    "bcryptjs": "^3.0.2",
+    "cors": "^2.8.5",
+    "dotenv": "^17.2.3",
+    "express": "^5.1.0",
+    "jsonwebtoken": "^9.0.2",
+    "morgan": "^1.10.1",
+    "multer": "^2.0.2",
+    "pg": "^8.23.0",
+    "pg-hstore": "^2.3.4",
+    "puppeteer": "^24.33.0",
+    "sequelize": "^6.37.7",
+    "winston": "^3.18.3"
+  },
+  "devDependencies": {
+    "embedded-postgres": "^18.4.0-beta.17",
+    "nodemon": "^3.1.10",
+    "sequelize-cli": "^6.6.2"
+  },
+  "allowScripts": {
+    "@embedded-postgres/linux-x64@18.4.0-beta.17": true
+  }
+}

@@ -1,0 +1,21 @@
+node_modules/
+
+# Environment secrets -- .env.example stays tracked as the template
+.env
+.env.*
+!.env.example
+
+# Embedded local Postgres data directory
+.pgdata/
+
+# Logs
+logs/
+*.log
+npm-debug.log*
+
+# User-uploaded files
+public/uploads/
+
+# OS/editor cruft
+.DS_Store
+*.swp
