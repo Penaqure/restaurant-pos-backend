@@ -1,4 +1,5 @@
 const { sequelize, TaxRate } = require("../../models");
+const logger = require("../../utils/logger");
 
 async function listTaxRates(req, res, next) {
   try {
@@ -30,6 +31,7 @@ async function createTaxRate(req, res, next) {
       { transaction: t }
     );
     await t.commit();
+    logger.info("tax_rate.created", { vendorId: req.vendorId, userId: req.user.id, taxRateId: rate.id, name, ratePercent });
     res.status(201).json(rate);
   } catch (err) {
     await t.rollback();
@@ -67,6 +69,7 @@ async function updateTaxRate(req, res, next) {
       { transaction: t }
     );
     await t.commit();
+    logger.info("tax_rate.updated", { vendorId: req.vendorId, userId: req.user.id, taxRateId: rate.id });
     res.json(rate);
   } catch (err) {
     await t.rollback();
@@ -79,6 +82,7 @@ async function deleteTaxRate(req, res, next) {
     const rate = await TaxRate.findOne({ where: { id: req.params.id, vendorId: req.vendorId } });
     if (!rate) return res.status(404).json({ message: "Tax rate not found" });
     await rate.destroy();
+    logger.info("tax_rate.deleted", { vendorId: req.vendorId, userId: req.user.id, taxRateId: rate.id, name: rate.name });
     res.status(204).send();
   } catch (err) {
     next(err);

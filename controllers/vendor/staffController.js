@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { User, Role, Branch, Vendor, SubscriptionPlan } = require("../../models");
+const logger = require("../../utils/logger");
 
 const staffIncludes = [
   { model: Role, as: "role" },
@@ -61,6 +62,14 @@ async function createStaff(req, res, next) {
       email: email.toLowerCase(),
       phone,
       passwordHash,
+    });
+
+    logger.info("staff.created", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      newStaffId: staff.id,
+      roleId,
+      branchId: branchId || null,
     });
 
     const created = await User.findByPk(staff.id, { include: staffIncludes });
@@ -126,6 +135,14 @@ async function updateStaff(req, res, next) {
     }
 
     await staff.update(update);
+
+    logger.info("staff.updated", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      staffId: staff.id,
+      changedFields: Object.keys(update).filter((k) => k !== "passwordHash"),
+      ...(password && { passwordReset: true }),
+    });
 
     const updated = await User.findByPk(staff.id, { include: staffIncludes });
     res.json(updated);

@@ -1,6 +1,7 @@
 const { sequelize, Payment, Bill, User } = require("../../models");
 const { PAYMENT_METHODS } = require("../../config/constants");
 const { round2 } = require("../../services/billingService");
+const logger = require("../../utils/logger");
 
 const paymentIncludes = [{ model: User, as: "recorder", attributes: ["id", "firstName", "lastName"] }];
 
@@ -78,6 +79,15 @@ async function recordPayment(req, res, next) {
     await recalculateBill(bill, t);
     await t.commit();
 
+    logger.info("payment.recorded", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      paymentId: payment.id,
+      billId: bill.id,
+      method,
+      amount: amountRounded,
+    });
+
     const created = await Payment.findByPk(payment.id, { include: paymentIncludes });
     res.status(201).json({ payment: created, bill: await bill.reload() });
   } catch (err) {
@@ -104,6 +114,14 @@ async function voidPayment(req, res, next) {
     await payment.update({ status: "void" }, { transaction: t });
     await recalculateBill(bill, t);
     await t.commit();
+
+    logger.info("payment.voided", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      paymentId: payment.id,
+      billId: payment.billId,
+      amount: payment.amount,
+    });
 
     res.json({ payment: await payment.reload(), bill: await bill.reload() });
   } catch (err) {

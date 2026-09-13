@@ -14,6 +14,7 @@ const {
 } = require("../../models");
 const counterService = require("../../services/counterService");
 const { computeOrderLines, OrderValidationError } = require("../../services/orderPricingService");
+const logger = require("../../utils/logger");
 
 const itemIncludes = [
   { model: ItemVariant, as: "variants" },
@@ -83,6 +84,7 @@ async function createPublicOrder(req, res, next) {
     const resolved = await resolveTable(tableId, t);
     if (!resolved) {
       await t.rollback();
+      logger.warn("public_order.invalid_qr", { tableId });
       return res.status(404).json({ message: "This QR code is no longer valid" });
     }
     const { table, branch, vendor } = resolved;
@@ -152,6 +154,14 @@ async function createPublicOrder(req, res, next) {
     await table.update({ status: "occupied" }, { transaction: t });
 
     await t.commit();
+
+    logger.info("public_order.created", {
+      vendorId: vendor.id,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      tableId: table.id,
+      totalAmount,
+    });
 
     res.status(201).json({ orderNumber: order.orderNumber, totalAmount: order.totalAmount, tableName: table.name });
   } catch (err) {

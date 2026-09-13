@@ -1,5 +1,6 @@
 const jwt = require("jsonwebtoken");
 const { User, Role, Vendor, SubscriptionPlan, Branch } = require("../../models");
+const logger = require("../../utils/logger");
 
 function signToken(user) {
   return jwt.sign(
@@ -33,14 +34,17 @@ async function login(req, res, next) {
     // Verify identity before revealing anything about account/vendor status,
     // so a guess against an unknown email always gets the same generic reply.
     if (!user || !(await user.comparePassword(password))) {
+      logger.warn("auth.login_failed", { email: email.toLowerCase(), reason: "invalid_credentials" });
       return res.status(401).json({ message: "Invalid email or password" });
     }
 
     if (user.status !== "active") {
+      logger.warn("auth.login_failed", { userId: user.id, vendorId: user.vendorId, reason: "account_inactive" });
       return res.status(403).json({ message: "This account has been disabled. Contact your administrator." });
     }
 
     if (user.vendor && !user.vendor.isActive) {
+      logger.warn("auth.login_failed", { userId: user.id, vendorId: user.vendorId, reason: "vendor_disabled" });
       return res
         .status(403)
         .json({ message: "This restaurant's account has been disabled. Contact support to reactivate it." });
@@ -50,6 +54,7 @@ async function login(req, res, next) {
     await user.save();
 
     const token = signToken(user);
+    logger.info("auth.login_success", { userId: user.id, vendorId: user.vendorId, role: user.role.name });
 
     res.json({
       token,

@@ -16,6 +16,7 @@ const counterService = require("../../services/counterService");
 const billingService = require("../../services/billingService");
 const pdfService = require("../../services/pdfService");
 const { billHtml, SIZE_PRESETS } = require("../../templates/billTemplate");
+const logger = require("../../utils/logger");
 
 const billIncludes = [
   {
@@ -154,6 +155,16 @@ async function generateBillFromOrder(req, res, next) {
     }
 
     await t.commit();
+
+    logger.info("bill.generated", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      billId: bill.id,
+      billNumber,
+      orderId: order.id,
+      totalAmount: computed.totalAmount,
+      discountCode: discount?.code,
+    });
 
     const created = await Bill.findByPk(bill.id, { include: billIncludes });
     res.status(201).json(created);

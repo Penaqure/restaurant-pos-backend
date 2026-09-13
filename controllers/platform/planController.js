@@ -1,4 +1,5 @@
 const { SubscriptionPlan, Vendor } = require("../../models");
+const logger = require("../../utils/logger");
 
 async function listPlans(req, res, next) {
   try {
@@ -21,6 +22,7 @@ async function createPlan(req, res, next) {
       maxBranches: maxBranches ?? 1,
       maxUsers: maxUsers ?? 5,
     });
+    logger.info("platform.plan_created", { platformUserId: req.user.id, planId: plan.id, name: plan.name });
     res.status(201).json(plan);
   } catch (err) {
     next(err);
@@ -41,6 +43,7 @@ async function updatePlan(req, res, next) {
       ...(maxUsers !== undefined && { maxUsers }),
       ...(isActive !== undefined && { isActive }),
     });
+    logger.info("platform.plan_updated", { platformUserId: req.user.id, planId: plan.id });
     res.json(plan);
   } catch (err) {
     next(err);
@@ -57,6 +60,7 @@ async function deletePlan(req, res, next) {
 
     const vendorCount = await Vendor.count({ where: { planId: plan.id } });
     await plan.destroy();
+    logger.info("platform.plan_deleted", { platformUserId: req.user.id, planId: plan.id, vendorsAffected: vendorCount });
     res.status(200).json({ vendorsAffected: vendorCount });
   } catch (err) {
     next(err);

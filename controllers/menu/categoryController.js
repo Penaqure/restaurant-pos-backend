@@ -1,4 +1,5 @@
 const { MenuCategory, MenuItem } = require("../../models");
+const logger = require("../../utils/logger");
 
 async function listCategories(req, res, next) {
   try {
@@ -23,6 +24,7 @@ async function createCategory(req, res, next) {
       description,
       sortOrder: sortOrder ?? 0,
     });
+    logger.info("menu_category.created", { vendorId: req.vendorId, userId: req.user.id, categoryId: category.id, name });
     res.status(201).json(category);
   } catch (err) {
     next(err);
@@ -43,6 +45,7 @@ async function updateCategory(req, res, next) {
       ...(sortOrder !== undefined && { sortOrder }),
       ...(isActive !== undefined && { isActive }),
     });
+    logger.info("menu_category.updated", { vendorId: req.vendorId, userId: req.user.id, categoryId: category.id });
     res.json(category);
   } catch (err) {
     next(err);
@@ -62,6 +65,7 @@ async function deleteCategory(req, res, next) {
     }
 
     await category.destroy();
+    logger.info("menu_category.deleted", { vendorId: req.vendorId, userId: req.user.id, categoryId: category.id, name: category.name });
     res.status(204).send();
   } catch (err) {
     next(err);

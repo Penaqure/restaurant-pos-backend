@@ -1,4 +1,5 @@
 const { Branch, Vendor, SubscriptionPlan, Order } = require("../../models");
+const logger = require("../../utils/logger");
 
 async function listBranches(req, res, next) {
   try {
@@ -28,6 +29,7 @@ async function createBranch(req, res, next) {
     }
 
     const branch = await Branch.create({ vendorId: req.vendorId, name, address, city, phone, gstin });
+    logger.info("branch.created", { vendorId: req.vendorId, userId: req.user.id, branchId: branch.id, name });
     res.status(201).json(branch);
   } catch (err) {
     next(err);
@@ -54,6 +56,12 @@ async function updateBranch(req, res, next) {
       ...(city !== undefined && { city }),
       ...(phone !== undefined && { phone }),
       ...(gstin !== undefined && { gstin }),
+      ...(isActive !== undefined && { isActive }),
+    });
+    logger.info("branch.updated", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      branchId: branch.id,
       ...(isActive !== undefined && { isActive }),
     });
     res.json(branch);
@@ -84,6 +92,7 @@ async function deleteBranch(req, res, next) {
     }
 
     await branch.destroy();
+    logger.info("branch.deleted", { vendorId: req.vendorId, userId: req.user.id, branchId: branch.id, name: branch.name });
     res.status(204).send();
   } catch (err) {
     next(err);

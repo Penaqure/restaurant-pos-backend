@@ -12,6 +12,7 @@ const { Op } = require("sequelize");
 const counterService = require("../../services/counterService");
 const { computeOrderLines, OrderValidationError } = require("../../services/orderPricingService");
 const { ORDER_TYPES, ORDER_STATUS_TRANSITIONS, ACTIVE_ORDER_STATUSES } = require("../../config/constants");
+const logger = require("../../utils/logger");
 
 const orderIncludes = [
   { model: RestaurantTable, as: "table", attributes: ["id", "name", "location", "status"] },
@@ -198,6 +199,16 @@ async function createOrder(req, res, next) {
 
     await t.commit();
 
+    logger.info("order.created", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      orderId: order.id,
+      orderNumber,
+      orderType,
+      tableId: table?.id,
+      totalAmount,
+    });
+
     const created = await Order.findByPk(order.id, { include: orderIncludes });
     res.status(201).json(created);
   } catch (err) {
@@ -238,6 +249,15 @@ async function updateOrderStatus(req, res, next) {
     }
 
     await t.commit();
+
+    logger.info("order.status_updated", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      from: order.previous("status"),
+      to: status,
+    });
 
     const updated = await Order.findByPk(order.id, { include: orderIncludes });
     res.json(updated);
@@ -303,6 +323,15 @@ async function transferTable(req, res, next) {
     if (previousTableId) await releaseTableIfIdle(previousTableId, t);
 
     await t.commit();
+
+    logger.info("order.table_transferred", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      fromTableId: previousTableId,
+      toTableId: newTable.id,
+    });
 
     const updated = await Order.findByPk(order.id, { include: orderIncludes });
     res.json(updated);
@@ -381,6 +410,15 @@ async function addItemsToOrder(req, res, next) {
     );
 
     await t.commit();
+
+    logger.info("order.items_added", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      orderId: order.id,
+      orderNumber: order.orderNumber,
+      itemCount: lineData.length,
+      addedAmount: totalAmount,
+    });
 
     const updated = await Order.findByPk(order.id, { include: orderIncludes });
     res.status(201).json(updated);

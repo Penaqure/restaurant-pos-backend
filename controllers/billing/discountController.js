@@ -1,4 +1,5 @@
 const { Discount } = require("../../models");
+const logger = require("../../utils/logger");
 
 async function listDiscounts(req, res, next) {
   try {
@@ -29,6 +30,7 @@ async function createDiscount(req, res, next) {
       validTo: validTo || null,
       usageLimit: usageLimit || null,
     });
+    logger.info("discount.created", { vendorId: req.vendorId, userId: req.user.id, discountId: discount.id, code: discount.code });
     res.status(201).json(discount);
   } catch (err) {
     next(err);
@@ -49,6 +51,7 @@ async function updateDiscount(req, res, next) {
       ...(validTo !== undefined && { validTo }),
       ...(usageLimit !== undefined && { usageLimit }),
     });
+    logger.info("discount.updated", { vendorId: req.vendorId, userId: req.user.id, discountId: discount.id, code: discount.code });
     res.json(discount);
   } catch (err) {
     next(err);
@@ -60,6 +63,7 @@ async function deleteDiscount(req, res, next) {
     const discount = await Discount.findOne({ where: { id: req.params.id, vendorId: req.vendorId } });
     if (!discount) return res.status(404).json({ message: "Discount not found" });
     await discount.destroy();
+    logger.info("discount.deleted", { vendorId: req.vendorId, userId: req.user.id, discountId: discount.id, code: discount.code });
     res.status(204).send();
   } catch (err) {
     next(err);

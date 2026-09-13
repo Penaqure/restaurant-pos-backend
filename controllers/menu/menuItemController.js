@@ -1,5 +1,6 @@
 const path = require("path");
 const { sequelize, MenuItem, MenuCategory, TaxRate, ItemVariant, ItemAddon } = require("../../models");
+const logger = require("../../utils/logger");
 
 const itemIncludes = [
   { model: ItemVariant, as: "variants" },
@@ -90,6 +91,8 @@ async function createItem(req, res, next) {
 
     await t.commit();
 
+    logger.info("menu_item.created", { vendorId: req.vendorId, userId: req.user.id, itemId: item.id, name });
+
     const created = await MenuItem.findByPk(item.id, { include: itemIncludes });
     res.status(201).json(created);
   } catch (err) {
@@ -123,6 +126,8 @@ async function updateItem(req, res, next) {
       ...(taxRateId !== undefined && { taxRateId: taxRateId || null }),
     });
 
+    logger.info("menu_item.updated", { vendorId: req.vendorId, userId: req.user.id, itemId: item.id });
+
     const updated = await MenuItem.findByPk(item.id, { include: itemIncludes });
     res.json(updated);
   } catch (err) {
@@ -135,6 +140,7 @@ async function deleteItem(req, res, next) {
     const item = await MenuItem.findOne({ where: { id: req.params.id, vendorId: req.vendorId } });
     if (!item) return res.status(404).json({ message: "Item not found" });
     await item.destroy();
+    logger.info("menu_item.deleted", { vendorId: req.vendorId, userId: req.user.id, itemId: item.id, name: item.name });
     res.status(204).send();
   } catch (err) {
     next(err);

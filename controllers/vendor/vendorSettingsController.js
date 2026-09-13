@@ -1,5 +1,6 @@
 const { Vendor } = require("../../models");
 const { SIZE_PRESETS } = require("../../templates/billTemplate");
+const logger = require("../../utils/logger");
 
 const SETTINGS_FIELDS = ["defaultBillSize", "billShowGst", "billShowLogo", "billFooterNote"];
 
@@ -40,6 +41,7 @@ async function updateBillingSettings(req, res, next) {
 
     const vendor = await Vendor.findByPk(req.vendorId);
     await vendor.update(updates);
+    logger.info("vendor_settings.updated", { vendorId: req.vendorId, userId: req.user.id, changedFields: Object.keys(updates) });
     res.json(serialize(vendor));
   } catch (err) {
     next(err);

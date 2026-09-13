@@ -3,6 +3,7 @@ const bcrypt = require("bcryptjs");
 const { sequelize, Vendor, Branch, Role, User, SubscriptionPlan, Order } = require("../../models");
 const { VENDOR_ROLE_DEFAULTS, ROLES } = require("../../config/constants");
 const { slugify } = require("../../utils/slugify");
+const logger = require("../../utils/logger");
 
 // Onboards a new vendor: creates the vendor, its first branch, its default
 // role set, and the owner account, all inside one transaction so a failure
@@ -76,6 +77,13 @@ async function createVendor(req, res, next) {
     );
 
     await t.commit();
+
+    logger.info("platform.vendor_created", {
+      platformUserId: req.user.id,
+      vendorId: vendor.id,
+      vendorName: vendor.name,
+      ownerId: owner.id,
+    });
 
     res.status(201).json({
       vendor: { id: vendor.id, name: vendor.name, slug: vendor.slug },
@@ -170,6 +178,15 @@ async function updateVendor(req, res, next) {
       ...(defaultTaxRatePercent !== undefined && { defaultTaxRatePercent }),
     });
 
+    if (isActive !== undefined) {
+      logger.info(isActive ? "platform.vendor_enabled" : "platform.vendor_disabled", {
+        platformUserId: req.user.id,
+        vendorId: vendor.id,
+      });
+    } else {
+      logger.info("platform.vendor_updated", { platformUserId: req.user.id, vendorId: vendor.id });
+    }
+
     const updated = await Vendor.findByPk(vendor.id, {
       include: [
         { model: Branch, as: "branches" },
@@ -202,6 +219,7 @@ async function deleteVendor(req, res, next) {
     }
 
     await vendor.destroy();
+    logger.info("platform.vendor_deleted", { platformUserId: req.user.id, vendorId: vendor.id, vendorName: vendor.name });
     res.status(204).send();
   } catch (err) {
     next(err);
