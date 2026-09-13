@@ -17,6 +17,7 @@ async function createVendor(req, res, next) {
       gstin,
       branchName,
       currency,
+      country,
       timezone,
       invoicePrefix,
       defaultTaxRatePercent,
@@ -41,6 +42,7 @@ async function createVendor(req, res, next) {
         contactPhone,
         gstin,
         ...(currency && { currency }),
+        ...(country && { country }),
         ...(timezone && { timezone }),
         ...(invoicePrefix && { invoicePrefix }),
         ...(defaultTaxRatePercent !== undefined && { defaultTaxRatePercent }),
@@ -132,6 +134,7 @@ async function updateVendor(req, res, next) {
       brandColor,
       isActive,
       currency,
+      country,
       timezone,
       invoicePrefix,
       defaultTaxRatePercent,
@@ -147,6 +150,9 @@ async function updateVendor(req, res, next) {
     if (currency && !/^[A-Z]{3}$/.test(currency)) {
       return res.status(400).json({ message: "currency must be a 3-letter code like INR" });
     }
+    if (country && !/^[A-Z]{2,5}$/.test(country)) {
+      return res.status(400).json({ message: "country must be a 2-5 letter code like IN" });
+    }
 
     await vendor.update({
       ...(name !== undefined && { name }),
@@ -158,6 +164,7 @@ async function updateVendor(req, res, next) {
       ...(brandColor !== undefined && { brandColor }),
       ...(isActive !== undefined && { isActive }),
       ...(currency !== undefined && { currency }),
+      ...(country !== undefined && { country }),
       ...(timezone !== undefined && { timezone }),
       ...(invoicePrefix !== undefined && { invoicePrefix }),
       ...(defaultTaxRatePercent !== undefined && { defaultTaxRatePercent }),

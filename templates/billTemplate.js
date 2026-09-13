@@ -44,7 +44,7 @@ function billHtml({ bill, order, vendor, branch, logoDataUri, size = "a4", showG
       return isReceipt
         ? `
         <tr>
-          <td colspan="2">${item.quantity} x ${name}${addons}</td>
+          <td colspan="2">${item.quantity} x ${name} @ ${money(item.unitPriceSnapshot)}${addons}</td>
         </tr>
         <tr class="line-total">
           <td></td>
@@ -60,13 +60,27 @@ function billHtml({ bill, order, vendor, branch, logoDataUri, size = "a4", showG
     })
     .join("");
 
+  // India's GST is conventionally shown split into CGST + SGST (each half
+  // the combined rate) rather than one "GST" line; other countries just get
+  // a plain tax line at the full rate.
   const taxRows = showGst
     ? bill.taxBreakdown
+        .flatMap((t) => {
+          if (vendor.country === "IN") {
+            const halfRate = t.ratePercent / 2;
+            const halfTax = t.taxAmount / 2;
+            return [
+              { label: `CGST ${halfRate}% on ${money(t.taxableAmount)}`, amount: halfTax },
+              { label: `SGST ${halfRate}% on ${money(t.taxableAmount)}`, amount: halfTax },
+            ];
+          }
+          return [{ label: `Tax ${t.ratePercent}% on ${money(t.taxableAmount)}`, amount: t.taxAmount }];
+        })
         .map(
-          (t) => `
+          (row) => `
         <tr>
-          <td colspan="${isReceipt ? 1 : 3}">GST ${t.ratePercent}% on ${money(t.taxableAmount)}</td>
-          <td class="num">${money(t.taxAmount)}</td>
+          <td colspan="${isReceipt ? 1 : 3}">${row.label}</td>
+          <td class="num">${money(row.amount)}</td>
         </tr>`
         )
         .join("")

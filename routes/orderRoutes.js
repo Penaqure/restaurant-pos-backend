@@ -9,12 +9,18 @@ const router = express.Router();
 
 router.use(protect, tenantScope);
 
-// Per the RBAC matrix, every staff role can create/update orders.
+// Per the RBAC matrix, every front-of-house role can create/update orders.
 const canOrder = authorizeRoles(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER);
+// Kitchen only views orders and moves them through the prep pipeline -- it
+// never creates an order or touches billing.
+const canView = authorizeRoles(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER, ROLES.KITCHEN);
+const canUpdateStatus = authorizeRoles(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER, ROLES.KITCHEN);
 
-router.get("/", canOrder, orderController.listOrders);
-router.get("/:id", canOrder, orderController.getOrder);
+router.get("/", canView, orderController.listOrders);
+router.get("/:id", canView, orderController.getOrder);
 router.post("/", canOrder, orderController.createOrder);
-router.patch("/:id/status", canOrder, orderController.updateOrderStatus);
+router.post("/:id/items", canOrder, orderController.addItemsToOrder);
+router.patch("/:id/status", canUpdateStatus, orderController.updateOrderStatus);
+router.patch("/:id/table", canOrder, orderController.transferTable);
 
 module.exports = router;

@@ -10,6 +10,8 @@ module.exports = (sequelize, DataTypes) => {
       vendorId: { type: DataTypes.UUID, allowNull: false },
       branchId: { type: DataTypes.UUID, allowNull: false },
       name: { type: DataTypes.STRING, allowNull: false },
+      // Freeform seating area tag, e.g. "AC - 1st Floor", "Non-AC", "Terrace".
+      location: { type: DataTypes.STRING, allowNull: true },
       capacity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 4 },
       status: {
         type: DataTypes.ENUM("available", "occupied", "reserved", "cleaning"),

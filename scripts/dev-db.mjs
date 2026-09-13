@@ -13,7 +13,9 @@ const pg = new EmbeddedPostgres({
   databaseDir,
   user: "billing_user",
   password: "billing_pass",
-  port: 5433,
+  // 5433 collides with other local projects' embedded Postgres instances on
+  // this machine; 5434 is this project's own.
+  port: 5434,
   persistent: true,
 });
 
@@ -26,7 +28,7 @@ if (!alreadyInitialised) {
 }
 
 console.log(
-  "Local Postgres ready — postgresql://billing_user:billing_pass@localhost:5433/restaurant_billing"
+  "Local Postgres ready — postgresql://billing_user:billing_pass@localhost:5434/restaurant_billing"
 );
 
 async function shutdown() {

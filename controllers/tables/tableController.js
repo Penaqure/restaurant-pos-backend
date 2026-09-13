@@ -1,4 +1,5 @@
-const { RestaurantTable, Branch } = require("../../models");
+const { RestaurantTable, Branch, Order } = require("../../models");
+const { ACTIVE_ORDER_STATUSES } = require("../../config/constants");
 
 async function resolveBranchFilter(req) {
   // Owner/manager (branchId === null on their token) can pass ?branchId= to
@@ -28,7 +29,7 @@ async function listTables(req, res, next) {
 
 async function createTable(req, res, next) {
   try {
-    const { name, capacity, branchId } = req.body;
+    const { name, capacity, branchId, location } = req.body;
     const effectiveBranchId = req.branchId || branchId;
     if (!name || !effectiveBranchId) {
       return res.status(400).json({ message: "name and branchId are required" });
@@ -41,6 +42,7 @@ async function createTable(req, res, next) {
       vendorId: req.vendorId,
       branchId: branch.id,
       name,
+      location: location || null,
       capacity: capacity ?? 4,
     });
     res.status(201).json(table);
@@ -54,11 +56,26 @@ async function updateTable(req, res, next) {
     const table = await RestaurantTable.findOne({ where: { id: req.params.id, vendorId: req.vendorId } });
     if (!table) return res.status(404).json({ message: "Table not found" });
 
-    const { name, capacity, status } = req.body;
+    const { name, capacity, status, location } = req.body;
+
+    // Manual status flips (available/occupied/reserved/cleaning) are for
+    // staff bookkeeping between orders -- while an order is actually in
+    // progress, occupancy is driven by the order lifecycle instead, so
+    // manual changes are blocked until it's completed or cancelled.
+    if (status !== undefined && status !== table.status) {
+      const activeOrder = await Order.findOne({ where: { tableId: table.id, status: ACTIVE_ORDER_STATUSES } });
+      if (activeOrder) {
+        return res.status(409).json({
+          message: `Cannot change status while ${table.name} has an active order (${activeOrder.orderNumber}). It will free up automatically once that order is completed or cancelled.`,
+        });
+      }
+    }
+
     await table.update({
       ...(name !== undefined && { name }),
       ...(capacity !== undefined && { capacity }),
       ...(status !== undefined && { status }),
+      ...(location !== undefined && { location: location || null }),
     });
     res.json(table);
   } catch (err) {

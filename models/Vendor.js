@@ -24,6 +24,9 @@ module.exports = (sequelize, DataTypes) => {
       defaultTaxRatePercent: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
       invoicePrefix: { type: DataTypes.STRING, allowNull: false, defaultValue: "INV" },
       currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: "INR" },
+      // Drives country-specific tax presentation on bills, e.g. India's
+      // CGST/SGST split -- not just a currency/locale display concern.
+      country: { type: DataTypes.STRING(5), allowNull: false, defaultValue: "IN" },
       timezone: { type: DataTypes.STRING, allowNull: false, defaultValue: "Asia/Kolkata" },
       isActive: { type: DataTypes.BOOLEAN, allowNull: false, defaultValue: true },
       defaultBillSize: { type: DataTypes.STRING(20), allowNull: false, defaultValue: "a4" },

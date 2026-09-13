@@ -28,6 +28,7 @@ const billIncludes = [
   },
   { model: Discount, as: "discount", attributes: ["id", "code", "type", "value"] },
   { model: User, as: "generator", attributes: ["id", "firstName", "lastName"] },
+  { model: Vendor, as: "vendor", attributes: ["id", "name", "gstin", "country"] },
 ];
 
 function uploadsDir() {
