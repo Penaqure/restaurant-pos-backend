@@ -1,0 +1,9 @@
+node_modules
+.pgdata
+logs
+public/uploads
+.env
+.env.*
+!.env.example
+.git
+npm-debug.log*
