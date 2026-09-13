@@ -153,7 +153,7 @@ async function updateVendor(req, res, next) {
       if (!plan) return res.status(400).json({ message: "Invalid plan" });
     }
     if (brandColor && !/^#[0-9a-fA-F]{6}$/.test(brandColor)) {
-      return res.status(400).json({ message: "brandColor must be a hex color like #5a3ff0" });
+      return res.status(400).json({ message: "brandColor must be a hex color like #c81e1e" });
     }
     if (currency && !/^[A-Z]{3}$/.test(currency)) {
       return res.status(400).json({ message: "currency must be a 3-letter code like INR" });

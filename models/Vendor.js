@@ -20,7 +20,7 @@ module.exports = (sequelize, DataTypes) => {
       },
       planRenewsAt: { type: DataTypes.DATE, allowNull: true },
       logoUrl: { type: DataTypes.STRING, allowNull: true },
-      brandColor: { type: DataTypes.STRING(7), allowNull: false, defaultValue: "#5a3ff0" },
+      brandColor: { type: DataTypes.STRING(7), allowNull: false, defaultValue: "#c81e1e" },
       defaultTaxRatePercent: { type: DataTypes.DECIMAL(5, 2), allowNull: false, defaultValue: 0 },
       invoicePrefix: { type: DataTypes.STRING, allowNull: false, defaultValue: "INV" },
       currency: { type: DataTypes.STRING(3), allowNull: false, defaultValue: "INR" },

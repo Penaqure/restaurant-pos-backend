@@ -31,7 +31,7 @@ const SIZE_PRESETS = {
 function billHtml({ bill, order, vendor, branch, logoDataUri, size = "a4", showGst = true, showLogo = true, footerNote }) {
   const preset = SIZE_PRESETS[size] || SIZE_PRESETS.a4;
   const isReceipt = preset.mode === "receipt";
-  const brandColor = /^#[0-9a-fA-F]{6}$/.test(vendor.brandColor) ? vendor.brandColor : "#5a3ff0";
+  const brandColor = /^#[0-9a-fA-F]{6}$/.test(vendor.brandColor) ? vendor.brandColor : "#c81e1e";
 
   const itemRows = order.items
     .map((item) => {
