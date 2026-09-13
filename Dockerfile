@@ -26,4 +26,9 @@ RUN mkdir -p public/uploads/bills logs
 
 EXPOSE 5000
 
+# Uses Node's own http client rather than curl/wget so this doesn't need an
+# extra apt package -- the app already exposes GET /health for this.
+HEALTHCHECK --interval=10s --timeout=5s --start-period=30s --retries=5 \
+  CMD node -e "require('http').get('http://localhost:5000/health', (r) => process.exit(r.statusCode === 200 ? 0 : 1)).on('error', () => process.exit(1))"
+
 ENTRYPOINT ["./docker-entrypoint.sh"]
