@@ -18,6 +18,7 @@ const canUpdateStatus = authorizeRoles(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER
 
 router.get("/", canView, orderController.listOrders);
 router.get("/:id", canView, orderController.getOrder);
+router.get("/:id/kot", canView, orderController.getOrderKotPdf);
 router.post("/", canOrder, orderController.createOrder);
 router.post("/:id/items", canOrder, orderController.addItemsToOrder);
 router.patch("/:id/status", canUpdateStatus, orderController.updateOrderStatus);

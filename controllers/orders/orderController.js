@@ -14,6 +14,15 @@ const { computeOrderLines, OrderValidationError } = require("../../services/orde
 const { ORDER_TYPES, ORDER_STATUS_TRANSITIONS, ACTIVE_ORDER_STATUSES } = require("../../config/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../../services/notificationService");
+const pdfService = require("../../services/pdfService");
+const { kotHtml, SIZE_PRESETS: KOT_SIZE_PRESETS } = require("../../templates/kotTemplate");
+
+const MM_TO_PX = 96 / 25.4; // CSS px are defined at 96dpi; puppeteer's viewport is in px.
+const KOT_PDF_RENDER_OPTIONS = {
+  "thermal-80": { width: "80mm", pixelWidth: Math.round(80 * MM_TO_PX) },
+  "thermal-72": { width: "72mm", pixelWidth: Math.round(72 * MM_TO_PX) },
+  "thermal-58": { width: "58mm", pixelWidth: Math.round(58 * MM_TO_PX) },
+};
 
 const orderIncludes = [
   { model: RestaurantTable, as: "table", attributes: ["id", "name", "location", "status"] },
@@ -454,4 +463,39 @@ async function addItemsToOrder(req, res, next) {
   }
 }
 
-module.exports = { listOrders, getOrder, createOrder, updateOrderStatus, transferTable, addItemsToOrder };
+// Renders fresh on every call rather than caching to disk like bill PDFs do
+// -- an order's item list can change after it's placed (addItemsToOrder
+// puts it back to "placed" precisely so kitchen sees the update), so a
+// cached KOT could go stale mid-service.
+async function getOrderKotPdf(req, res, next) {
+  try {
+    const order = await Order.findOne({
+      where: { id: req.params.id, vendorId: req.vendorId },
+      include: orderIncludes,
+    });
+    if (!order) return res.status(404).json({ message: "Order not found" });
+
+    const vendor = await Vendor.findByPk(req.vendorId);
+    const branch = await Branch.findByPk(order.branchId);
+    const size = KOT_SIZE_PRESETS[req.query.size] ? req.query.size : "thermal-80";
+
+    const html = kotHtml({ order, vendor, branch, size });
+    const pdfBuffer = await pdfService.renderHtmlToPdf(html, KOT_PDF_RENDER_OPTIONS[size]);
+
+    res.setHeader("Content-Type", "application/pdf");
+    res.setHeader("Content-Disposition", `inline; filename="KOT-${order.orderNumber}.pdf"`);
+    res.send(pdfBuffer);
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  listOrders,
+  getOrder,
+  createOrder,
+  updateOrderStatus,
+  transferTable,
+  addItemsToOrder,
+  getOrderKotPdf,
+};
