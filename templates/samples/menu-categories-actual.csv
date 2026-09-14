@@ -1,0 +1,11 @@
+name,description,sortOrder,isActive
+Soups,Warm starters to begin your meal,1,true
+Starters,Appetizers and small plates,2,true
+Tandoori,Charcoal-grilled tandoor specialties,3,true
+Main Course,Hearty North Indian curries and gravies,4,true
+South Indian,"Dosas, idlis and South Indian classics",5,true
+Chinese,Indo-Chinese favorites,6,true
+Rice & Biryani,Fragrant rice and biryani specialties,7,true
+Breads,Freshly baked Indian breads,8,true
+Beverages,Hot and cold drinks,9,true
+Desserts,Sweet treats to finish the meal,10,true
