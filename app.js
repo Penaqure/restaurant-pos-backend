@@ -1,4 +1,5 @@
 require("dotenv").config();
+const http = require("http");
 const express = require("express");
 const cors = require("cors");
 const path = require("path");
@@ -21,6 +22,7 @@ const vendorSettingsRoutes = require("./routes/vendorSettingsRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const sequelize = require("./config/db");
 const logger = require("./utils/logger");
+const notificationService = require("./services/notificationService");
 
 const app = express();
 
@@ -49,13 +51,15 @@ app.use("/api/public", publicRoutes);
 app.use(notFound);
 app.use(errorHandler);
 
+const server = http.createServer(app);
 const PORT = process.env.PORT || 5000;
 
 sequelize
   .authenticate()
   .then(() => {
     logger.info("Database connection established");
-    app.listen(PORT, () => logger.info(`Server listening on port ${PORT}`));
+    notificationService.init(server);
+    server.listen(PORT, () => logger.info(`Server listening on port ${PORT}`));
   })
   .catch((err) => {
     logger.error("Unable to connect to the database", { error: err.message });

@@ -2,6 +2,12 @@ const path = require("path");
 const { sequelize, MenuItem, MenuCategory, TaxRate, ItemVariant, ItemAddon } = require("../../models");
 const logger = require("../../utils/logger");
 const { parseImportFile, toBoolean, toDecimal, toInt } = require("../../services/menuImportService");
+const notificationService = require("../../services/notificationService");
+const { ROLES } = require("../../config/constants");
+
+// Mirrors menuRoutes.js's canRead gate -- kitchen can't open the menu pages,
+// so it shouldn't be notified about an item going unavailable either.
+const MENU_ACCESS_ROLES = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER, ROLES.WAITER];
 
 const itemIncludes = [
   { model: ItemVariant, as: "variants" },
@@ -117,6 +123,7 @@ async function updateItem(req, res, next) {
       if (!rate) return res.status(400).json({ message: "Invalid tax rate for this vendor" });
     }
 
+    const wasAvailable = item.isAvailable;
     await item.update({
       ...(categoryId !== undefined && { categoryId }),
       ...(name !== undefined && { name }),
@@ -130,6 +137,19 @@ async function updateItem(req, res, next) {
     logger.info("menu_item.updated", { vendorId: req.vendorId, userId: req.user.id, itemId: item.id });
 
     const updated = await MenuItem.findByPk(item.id, { include: itemIncludes });
+
+    // Menu items have no stock/quantity field -- being toggled unavailable
+    // is the closest signal this app has to "just ran out", so it doubles
+    // as the low-stock notification trigger.
+    if (wasAvailable && isAvailable === false) {
+      notificationService.emitToRoles(req.vendorId, MENU_ACCESS_ROLES, "menu:item_unavailable", {
+        id: updated.id,
+        name: updated.name,
+        categoryName: updated.category?.name || null,
+        actorUserId: req.user.id,
+      });
+    }
+
     res.json(updated);
   } catch (err) {
     next(err);

@@ -13,6 +13,7 @@ const counterService = require("../../services/counterService");
 const { computeOrderLines, OrderValidationError } = require("../../services/orderPricingService");
 const { ORDER_TYPES, ORDER_STATUS_TRANSITIONS, ACTIVE_ORDER_STATUSES } = require("../../config/constants");
 const logger = require("../../utils/logger");
+const notificationService = require("../../services/notificationService");
 
 const orderIncludes = [
   { model: RestaurantTable, as: "table", attributes: ["id", "name", "location", "status"] },
@@ -210,6 +211,20 @@ async function createOrder(req, res, next) {
     });
 
     const created = await Order.findByPk(order.id, { include: orderIncludes });
+
+    notificationService.emitToVendor(req.vendorId, "order:placed", {
+      id: created.id,
+      orderNumber: created.orderNumber,
+      orderType: created.orderType,
+      table: created.table ? { id: created.table.id, name: created.table.name } : null,
+      totalAmount: created.totalAmount,
+      placedAt: created.placedAt,
+      actorUserId: req.user.id,
+    });
+    if (table) {
+      notificationService.checkLowTableAvailability({ vendorId: req.vendorId, branchId: branch.id, actorUserId: req.user.id });
+    }
+
     res.status(201).json(created);
   } catch (err) {
     await t.rollback();
@@ -242,6 +257,7 @@ async function updateOrderStatus(req, res, next) {
     if (status === "served") updates.servedBy = req.user.id;
     if (status === "completed" || status === "cancelled") updates.completedAt = new Date();
 
+    const previousStatus = order.status;
     await order.update(updates, { transaction: t });
 
     if (order.tableId && (status === "completed" || status === "cancelled")) {
@@ -260,6 +276,16 @@ async function updateOrderStatus(req, res, next) {
     });
 
     const updated = await Order.findByPk(order.id, { include: orderIncludes });
+
+    notificationService.emitToVendor(req.vendorId, "order:status_changed", {
+      id: updated.id,
+      orderNumber: updated.orderNumber,
+      status: updated.status,
+      previousStatus,
+      table: updated.table ? { id: updated.table.id, name: updated.table.name } : null,
+      actorUserId: req.user.id,
+    });
+
     res.json(updated);
   } catch (err) {
     await t.rollback();

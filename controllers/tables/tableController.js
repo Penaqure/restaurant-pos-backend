@@ -1,6 +1,7 @@
 const { RestaurantTable, Branch, Order } = require("../../models");
 const { ACTIVE_ORDER_STATUSES } = require("../../config/constants");
 const logger = require("../../utils/logger");
+const notificationService = require("../../services/notificationService");
 
 async function resolveBranchFilter(req) {
   // Owner/manager (branchId === null on their token) can pass ?branchId= to
@@ -93,6 +94,11 @@ async function updateTable(req, res, next) {
       tableId: table.id,
       ...(status !== undefined && status !== previousStatus && { statusFrom: previousStatus, statusTo: status }),
     });
+
+    if (status === "occupied" && status !== previousStatus) {
+      notificationService.checkLowTableAvailability({ vendorId: req.vendorId, branchId: table.branchId, actorUserId: req.user.id });
+    }
+
     res.json(table);
   } catch (err) {
     next(err);

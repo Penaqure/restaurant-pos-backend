@@ -1,7 +1,12 @@
 const { sequelize, Payment, Bill, User } = require("../../models");
-const { PAYMENT_METHODS } = require("../../config/constants");
+const { PAYMENT_METHODS, ROLES } = require("../../config/constants");
 const { round2 } = require("../../services/billingService");
 const logger = require("../../utils/logger");
+const notificationService = require("../../services/notificationService");
+
+// Mirrors billRoutes.js's canBill gate -- waiters/kitchen can't open a bill,
+// so they shouldn't be notified about one being paid either.
+const BILL_ACCESS_ROLES = [ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER];
 
 const paymentIncludes = [{ model: User, as: "recorder", attributes: ["id", "firstName", "lastName"] }];
 
@@ -89,7 +94,18 @@ async function recordPayment(req, res, next) {
     });
 
     const created = await Payment.findByPk(payment.id, { include: paymentIncludes });
-    res.status(201).json({ payment: created, bill: await bill.reload() });
+    const reloadedBill = await bill.reload();
+
+    notificationService.emitToRoles(req.vendorId, BILL_ACCESS_ROLES, "payment:received", {
+      billId: reloadedBill.id,
+      billNumber: reloadedBill.billNumber,
+      amount: amountRounded,
+      method,
+      paymentStatus: reloadedBill.paymentStatus,
+      actorUserId: req.user.id,
+    });
+
+    res.status(201).json({ payment: created, bill: reloadedBill });
   } catch (err) {
     await t.rollback();
     next(err);
