@@ -1,0 +1,6 @@
+[
+  { "name": "Starters", "description": "Appetizers and small plates", "sortOrder": 1, "isActive": true },
+  { "name": "Main Course", "description": "Hearty entrees", "sortOrder": 2, "isActive": true },
+  { "name": "Beverages", "description": "Hot and cold drinks", "sortOrder": 3, "isActive": true },
+  { "name": "Desserts", "description": "Sweet treats to finish the meal", "sortOrder": 4, "isActive": true }
+]

@@ -1,6 +1,7 @@
 const path = require("path");
 const { sequelize, MenuItem, MenuCategory, TaxRate, ItemVariant, ItemAddon } = require("../../models");
 const logger = require("../../utils/logger");
+const { parseImportFile, toBoolean, toDecimal, toInt } = require("../../services/menuImportService");
 
 const itemIncludes = [
   { model: ItemVariant, as: "variants" },
@@ -263,6 +264,114 @@ async function deleteAddon(req, res, next) {
   }
 }
 
+// Bulk-creates/updates menu items from an uploaded CSV or JSON file.
+// Expected columns: category (name, required), name (required),
+// description, basePrice (required), isVeg, isAvailable, sortOrder,
+// taxRate (name, optional). Categories and tax rates referenced by name
+// that don't already exist are looked up per-vendor; unknown categories
+// are auto-created, unknown tax rates are reported as row errors.
+// A row whose category+name matches an existing item (case-insensitive)
+// updates that item instead of creating a duplicate.
+async function importItems(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ message: "file is required" });
+
+    let rows;
+    try {
+      rows = parseImportFile(req.file);
+    } catch (err) {
+      return res.status(400).json({ message: err.message });
+    }
+
+    const [categories, taxRates, items] = await Promise.all([
+      MenuCategory.findAll({ where: { vendorId: req.vendorId } }),
+      TaxRate.findAll({ where: { vendorId: req.vendorId } }),
+      MenuItem.findAll({ where: { vendorId: req.vendorId } }),
+    ]);
+
+    const categoriesByName = new Map(categories.map((c) => [c.name.trim().toLowerCase(), c]));
+    const taxRatesByName = new Map(taxRates.map((t) => [t.name.trim().toLowerCase(), t]));
+    const itemsByKey = new Map(items.map((i) => [`${i.categoryId}::${i.name.trim().toLowerCase()}`, i]));
+
+    const result = { totalRows: rows.length, created: 0, updated: 0, categoriesCreated: 0, errors: [] };
+
+    for (let i = 0; i < rows.length; i++) {
+      const rowNum = i + 2; // header is row 1
+      const row = rows[i];
+      const categoryName = (row.category || "").toString().trim();
+      const name = (row.name || "").toString().trim();
+      const basePrice = toDecimal(row.basePrice);
+
+      if (!categoryName) {
+        result.errors.push({ row: rowNum, message: "category is required" });
+        continue;
+      }
+      if (!name) {
+        result.errors.push({ row: rowNum, message: "name is required" });
+        continue;
+      }
+      if (basePrice === null) {
+        result.errors.push({ row: rowNum, message: "basePrice is required and must be a number" });
+        continue;
+      }
+
+      let category = categoriesByName.get(categoryName.toLowerCase());
+      if (!category) {
+        category = await MenuCategory.create({ vendorId: req.vendorId, name: categoryName });
+        categoriesByName.set(categoryName.toLowerCase(), category);
+        result.categoriesCreated += 1;
+      }
+
+      let taxRateId = null;
+      const taxRateName = (row.taxRate || "").toString().trim();
+      if (taxRateName) {
+        const taxRate = taxRatesByName.get(taxRateName.toLowerCase());
+        if (!taxRate) {
+          result.errors.push({ row: rowNum, message: `Unknown taxRate "${taxRateName}"` });
+          continue;
+        }
+        taxRateId = taxRate.id;
+      }
+
+      const payload = {
+        vendorId: req.vendorId,
+        categoryId: category.id,
+        name,
+        description: row.description ? String(row.description).trim() : null,
+        basePrice,
+        isVeg: toBoolean(row.isVeg, true),
+        isAvailable: toBoolean(row.isAvailable, true),
+        sortOrder: toInt(row.sortOrder, 0),
+        taxRateId,
+      };
+
+      const key = `${category.id}::${name.toLowerCase()}`;
+      const match = itemsByKey.get(key);
+      if (match) {
+        await match.update(payload);
+        result.updated += 1;
+      } else {
+        const created = await MenuItem.create(payload);
+        itemsByKey.set(key, created);
+        result.created += 1;
+      }
+    }
+
+    logger.info("menu_item.imported", {
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      created: result.created,
+      updated: result.updated,
+      categoriesCreated: result.categoriesCreated,
+      errors: result.errors.length,
+    });
+
+    res.json(result);
+  } catch (err) {
+    next(err);
+  }
+}
+
 module.exports = {
   listItems,
   getItem,
@@ -276,4 +385,5 @@ module.exports = {
   addAddon,
   updateAddon,
   deleteAddon,
+  importItems,
 };

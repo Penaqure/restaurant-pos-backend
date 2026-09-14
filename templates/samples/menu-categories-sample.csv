@@ -1,0 +1,5 @@
+name,description,sortOrder,isActive
+Starters,Appetizers and small plates,1,true
+Main Course,Hearty entrees,2,true
+Beverages,Hot and cold drinks,3,true
+Desserts,Sweet treats to finish the meal,4,true

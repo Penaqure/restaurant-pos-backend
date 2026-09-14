@@ -1,0 +1,7 @@
+category,name,description,basePrice,isVeg,isAvailable,sortOrder,taxRate
+Starters,Veg Spring Rolls,Crispy rolls with mixed vegetables,120,true,true,1,
+Starters,Chicken Wings,Fried wings tossed in spicy sauce,180,false,true,2,
+Main Course,Paneer Butter Masala,Cottage cheese in a rich tomato gravy,220,true,true,1,
+Main Course,Chicken Biryani,Fragrant rice cooked with spiced chicken,250,false,true,2,
+Beverages,Masala Chai,Spiced Indian tea,40,true,true,1,
+Desserts,Gulab Jamun,Sweet milk dumplings in sugar syrup,80,true,true,1,

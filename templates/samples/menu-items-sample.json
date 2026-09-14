@@ -1,0 +1,8 @@
+[
+  { "category": "Starters", "name": "Veg Spring Rolls", "description": "Crispy rolls with mixed vegetables", "basePrice": 120, "isVeg": true, "isAvailable": true, "sortOrder": 1, "taxRate": "" },
+  { "category": "Starters", "name": "Chicken Wings", "description": "Fried wings tossed in spicy sauce", "basePrice": 180, "isVeg": false, "isAvailable": true, "sortOrder": 2, "taxRate": "" },
+  { "category": "Main Course", "name": "Paneer Butter Masala", "description": "Cottage cheese in a rich tomato gravy", "basePrice": 220, "isVeg": true, "isAvailable": true, "sortOrder": 1, "taxRate": "" },
+  { "category": "Main Course", "name": "Chicken Biryani", "description": "Fragrant rice cooked with spiced chicken", "basePrice": 250, "isVeg": false, "isAvailable": true, "sortOrder": 2, "taxRate": "" },
+  { "category": "Beverages", "name": "Masala Chai", "description": "Spiced Indian tea", "basePrice": 40, "isVeg": true, "isAvailable": true, "sortOrder": 1, "taxRate": "" },
+  { "category": "Desserts", "name": "Gulab Jamun", "description": "Sweet milk dumplings in sugar syrup", "basePrice": 80, "isVeg": true, "isAvailable": true, "sortOrder": 1, "taxRate": "" }
+]
