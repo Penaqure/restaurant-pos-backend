@@ -1,3 +1,4 @@
+const path = require("path");
 const { Vendor } = require("../../models");
 const { SIZE_PRESETS } = require("../../templates/billTemplate");
 const logger = require("../../utils/logger");
@@ -48,4 +49,69 @@ async function updateBillingSettings(req, res, next) {
   }
 }
 
-module.exports = { getBillingSettings, updateBillingSettings, SETTINGS_FIELDS };
+// -- Branding (name, logo, brand color) --
+
+function serializeBranding(vendor) {
+  return {
+    name: vendor.name,
+    brandColor: vendor.brandColor,
+    logoUrl: vendor.logoUrl,
+  };
+}
+
+async function getBrandingSettings(req, res, next) {
+  try {
+    const vendor = await Vendor.findByPk(req.vendorId);
+    res.json(serializeBranding(vendor));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function updateBrandingSettings(req, res, next) {
+  try {
+    const updates = {};
+
+    if ("name" in req.body) {
+      const name = typeof req.body.name === "string" ? req.body.name.trim() : "";
+      if (!name) return res.status(400).json({ message: "name is required" });
+      updates.name = name;
+    }
+    if ("brandColor" in req.body) {
+      if (!/^#[0-9a-fA-F]{6}$/.test(req.body.brandColor)) {
+        return res.status(400).json({ message: "brandColor must be a hex color like #c81e1e" });
+      }
+      updates.brandColor = req.body.brandColor;
+    }
+
+    const vendor = await Vendor.findByPk(req.vendorId);
+    await vendor.update(updates);
+    logger.info("vendor_settings.branding_updated", { vendorId: req.vendorId, userId: req.user.id, changedFields: Object.keys(updates) });
+    res.json(serializeBranding(vendor));
+  } catch (err) {
+    next(err);
+  }
+}
+
+async function uploadLogo(req, res, next) {
+  try {
+    if (!req.file) return res.status(400).json({ message: "logo file is required" });
+
+    const vendor = await Vendor.findByPk(req.vendorId);
+    const logoUrl = `/uploads/${path.basename(req.file.path)}`;
+    await vendor.update({ logoUrl });
+    logger.info("vendor_settings.logo_updated", { vendorId: req.vendorId, userId: req.user.id });
+    res.json({ logoUrl });
+  } catch (err) {
+    next(err);
+  }
+}
+
+module.exports = {
+  getBillingSettings,
+  updateBillingSettings,
+  SETTINGS_FIELDS,
+  getBrandingSettings,
+  updateBrandingSettings,
+  uploadLogo,
+};
