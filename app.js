@@ -20,6 +20,7 @@ const paymentRoutes = require("./routes/paymentRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const vendorSettingsRoutes = require("./routes/vendorSettingsRoutes");
 const publicRoutes = require("./routes/publicRoutes");
+const integrationRoutes = require("./routes/integrationRoutes");
 const sequelize = require("./config/db");
 const logger = require("./utils/logger");
 const notificationService = require("./services/notificationService");
@@ -47,6 +48,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/vendor-settings", vendorSettingsRoutes);
 app.use("/api/public", publicRoutes);
+app.use("/api/integrations", integrationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
