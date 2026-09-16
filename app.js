@@ -2,10 +2,13 @@ require("dotenv").config();
 const http = require("http");
 const express = require("express");
 const cors = require("cors");
+const helmet = require("helmet");
+const cookieParser = require("cookie-parser");
 const path = require("path");
 
 const requestLogger = require("./middlewares/requestLogger");
 const { notFound, errorHandler } = require("./middlewares/errorHandler");
+const { apiLimiter } = require("./middlewares/rateLimiters");
 const authRoutes = require("./routes/authRoutes");
 const platformRoutes = require("./routes/platformRoutes");
 const staffRoutes = require("./routes/staffRoutes");
@@ -25,11 +28,38 @@ const sequelize = require("./config/db");
 const logger = require("./utils/logger");
 const notificationService = require("./services/notificationService");
 
+// Fail fast rather than silently running with a forgeable/absent secret --
+// a weak JWT_SECRET lets an attacker mint a valid token for any user,
+// including a platform super_admin.
+const PLACEHOLDER_JWT_SECRET = "change-this-to-a-long-random-string";
+if (
+  !process.env.JWT_SECRET ||
+  process.env.JWT_SECRET.length < 32 ||
+  process.env.JWT_SECRET === PLACEHOLDER_JWT_SECRET
+) {
+  throw new Error(
+    "JWT_SECRET is missing, too short, or still the placeholder from .env.example. " +
+      "Set it to a long random value (e.g. `node -e \"console.log(require('crypto').randomBytes(64).toString('hex'))\"`) before starting the server."
+  );
+}
+
+// Same fail-closed posture for CORS -- "*" would let any website's JS read
+// authenticated responses via credentialed requests, and browsers reject
+// "*" combined with credentials anyway, so a real origin is required.
+const FRONTEND_URL = process.env.FRONTEND_URL || (process.env.NODE_ENV === "production" ? null : "http://localhost:3000");
+if (!FRONTEND_URL) {
+  throw new Error("FRONTEND_URL must be set in production (used for CORS + cookie scoping).");
+}
+
 const app = express();
 
-app.use(cors({ origin: process.env.FRONTEND_URL || "*" }));
-app.use(express.json());
+app.set("trust proxy", process.env.TRUST_PROXY === "true");
+app.use(helmet({ crossOriginResourcePolicy: { policy: "cross-origin" } }));
+app.use(cors({ origin: FRONTEND_URL, credentials: true }));
+app.use(express.json({ limit: "1mb" }));
+app.use(cookieParser());
 app.use(requestLogger);
+app.use("/api", apiLimiter);
 app.use("/uploads", express.static(path.join(__dirname, process.env.UPLOAD_DIR || "public/uploads")));
 
 app.get("/health", (req, res) => res.json({ status: "ok" }));
@@ -60,7 +90,7 @@ sequelize
   .authenticate()
   .then(() => {
     logger.info("Database connection established");
-    notificationService.init(server);
+    notificationService.init(server, FRONTEND_URL);
     server.listen(PORT, () => logger.info(`Server listening on port ${PORT}`));
   })
   .catch((err) => {

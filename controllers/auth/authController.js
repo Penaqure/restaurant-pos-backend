@@ -2,6 +2,18 @@ const jwt = require("jsonwebtoken");
 const { User, Role, Vendor, SubscriptionPlan, Branch } = require("../../models");
 const logger = require("../../utils/logger");
 
+const COOKIE_NAME = "billing_token";
+// jsonwebtoken's `expiresIn` accepts "1d"/"12h"/etc; the cookie needs the
+// same lifetime in milliseconds, so a small set of units is parsed by hand
+// rather than pulling in a duration-parsing dependency for this one value.
+function expiresInMs(raw) {
+  const match = /^(\d+)([smhd])$/.exec(raw || "1d");
+  if (!match) return 24 * 60 * 60 * 1000;
+  const value = Number(match[1]);
+  const unitMs = { s: 1000, m: 60 * 1000, h: 60 * 60 * 1000, d: 24 * 60 * 60 * 1000 }[match[2]];
+  return value * unitMs;
+}
+
 function signToken(user) {
   return jwt.sign(
     {
@@ -14,6 +26,20 @@ function signToken(user) {
     process.env.JWT_SECRET,
     { expiresIn: process.env.JWT_EXPIRES_IN || "1d" }
   );
+}
+
+// httpOnly so the token is never reachable from page JS -- closes off the
+// XSS-token-theft path a readable cookie/localStorage would leave open.
+// SameSite=Lax is enough since frontend and backend share a host (only the
+// port differs) in this deployment, per docker-compose.yml.
+function setAuthCookie(res, token) {
+  res.cookie(COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: process.env.COOKIE_SECURE === "true",
+    maxAge: expiresInMs(process.env.JWT_EXPIRES_IN),
+    path: "/",
+  });
 }
 
 async function login(req, res, next) {
@@ -54,10 +80,10 @@ async function login(req, res, next) {
     await user.save();
 
     const token = signToken(user);
+    setAuthCookie(res, token);
     logger.info("auth.login_success", { userId: user.id, vendorId: user.vendorId, role: user.role.name });
 
     res.json({
-      token,
       user: {
         id: user.id,
         vendorId: user.vendorId,
@@ -71,6 +97,11 @@ async function login(req, res, next) {
   } catch (err) {
     next(err);
   }
+}
+
+function logout(req, res) {
+  res.clearCookie(COOKIE_NAME, { path: "/" });
+  res.json({ message: "Logged out" });
 }
 
 async function me(req, res, next) {
@@ -122,4 +153,4 @@ async function me(req, res, next) {
   }
 }
 
-module.exports = { login, me };
+module.exports = { login, logout, me };

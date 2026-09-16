@@ -1,6 +1,9 @@
 const bcrypt = require("bcryptjs");
 const { User, Role, Branch, Vendor, SubscriptionPlan } = require("../../models");
 const logger = require("../../utils/logger");
+const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../../utils/passwordPolicy");
+
+const BCRYPT_ROUNDS = 12;
 
 const staffIncludes = [
   { model: Role, as: "role" },
@@ -25,6 +28,9 @@ async function createStaff(req, res, next) {
     const { firstName, lastName, email, phone, roleId, branchId, password } = req.body;
     if (!firstName || !email || !roleId || !password) {
       return res.status(400).json({ message: "firstName, email, roleId and password are required" });
+    }
+    if (!isStrongPassword(password)) {
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
     }
 
     // Role must belong to this vendor -- prevents assigning another vendor's (or the platform's) role.
@@ -52,7 +58,7 @@ async function createStaff(req, res, next) {
       }
     }
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     const staff = await User.create({
       vendorId: req.vendorId,
       branchId: branchId || null,
@@ -131,7 +137,10 @@ async function updateStaff(req, res, next) {
       ...(status !== undefined && { status }),
     };
     if (password) {
-      update.passwordHash = await bcrypt.hash(password, 10);
+      if (!isStrongPassword(password)) {
+        return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+      }
+      update.passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
     }
 
     await staff.update(update);

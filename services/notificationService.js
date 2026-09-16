@@ -1,5 +1,6 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
+const cookie = require("cookie");
 const logger = require("../utils/logger");
 
 let io = null;
@@ -16,9 +17,9 @@ function roleRoom(vendorId, roleName) {
   return `vendor:${vendorId}:role:${roleName}`;
 }
 
-function init(httpServer) {
+function init(httpServer, frontendUrl) {
   io = new Server(httpServer, {
-    cors: { origin: process.env.FRONTEND_URL || "*" },
+    cors: { origin: frontendUrl || process.env.FRONTEND_URL, credentials: true },
   });
 
   // Lightweight auth: verifies the same JWT issued at login, without a DB
@@ -26,11 +27,17 @@ function init(httpServer) {
   // the socket connects stays connected until the token expires or the page
   // reloads -- the REST API (which does check on every request) remains the
   // source of truth for access control.
+  //
+  // The token itself now lives only in the httpOnly `billing_token` cookie
+  // (see authController/authMiddleware), so it's read the same way here --
+  // off the handshake request's Cookie header -- rather than a client-
+  // supplied `auth.token`, which would require page JS to hold the token.
   io.use((socket, next) => {
     try {
-      const token = socket.handshake.auth?.token;
+      const cookies = cookie.parse(socket.handshake.headers.cookie || "");
+      const token = cookies.billing_token;
       if (!token) return next(new Error("Not authenticated"));
-      const payload = jwt.verify(token, process.env.JWT_SECRET);
+      const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
       if (!payload.vendorId) return next(new Error("Not authenticated"));
       socket.vendorId = payload.vendorId;
       socket.userId = payload.id;

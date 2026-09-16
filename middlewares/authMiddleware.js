@@ -4,13 +4,19 @@ const { User, Role, Vendor, Branch } = require("../models");
 // Verifies the JWT, loads the current user + role, and attaches them to req.
 async function protect(req, res, next) {
   try {
+    // The browser client rides the httpOnly cookie set at login; a bare
+    // Authorization header stays supported for non-browser API callers
+    // (Postman, scripts) that can't hold a cookie jar.
     const header = req.headers.authorization || "";
-    const token = header.startsWith("Bearer ") ? header.slice(7) : null;
+    const token = req.cookies?.billing_token || (header.startsWith("Bearer ") ? header.slice(7) : null);
     if (!token) {
       return res.status(401).json({ message: "Not authenticated" });
     }
 
-    const payload = jwt.verify(token, process.env.JWT_SECRET);
+    // Pinning the algorithm stops a token forged with alg:"none" or a
+    // different algorithm than the one this server actually signs with
+    // from being accepted, regardless of what the token's own header claims.
+    const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });
 
     const user = await User.findByPk(payload.id, {
       include: [

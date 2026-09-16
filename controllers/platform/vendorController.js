@@ -4,6 +4,9 @@ const { sequelize, Vendor, Branch, Role, User, SubscriptionPlan, Order } = requi
 const { VENDOR_ROLE_DEFAULTS, ROLES } = require("../../config/constants");
 const { slugify } = require("../../utils/slugify");
 const logger = require("../../utils/logger");
+const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../../utils/passwordPolicy");
+
+const BCRYPT_ROUNDS = 12;
 
 // Onboards a new vendor: creates the vendor, its first branch, its default
 // role set, and the owner account, all inside one transaction so a failure
@@ -34,6 +37,10 @@ async function createVendor(req, res, next) {
         message: "vendorName, contactEmail, ownerEmail and ownerPassword are required",
       });
     }
+    if (!isStrongPassword(ownerPassword)) {
+      await t.rollback();
+      return res.status(400).json({ message: PASSWORD_POLICY_MESSAGE });
+    }
 
     const vendor = await Vendor.create(
       {
@@ -62,7 +69,7 @@ async function createVendor(req, res, next) {
     );
     const ownerRole = roles.find((r) => r.name === ROLES.OWNER);
 
-    const passwordHash = await bcrypt.hash(ownerPassword, 10);
+    const passwordHash = await bcrypt.hash(ownerPassword, BCRYPT_ROUNDS);
     const owner = await User.create(
       {
         vendorId: vendor.id,

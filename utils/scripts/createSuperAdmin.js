@@ -2,6 +2,9 @@ require("dotenv").config();
 const bcrypt = require("bcryptjs");
 const { Role, User } = require("../../models");
 const { ROLES } = require("../../config/constants");
+const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../passwordPolicy");
+
+const BCRYPT_ROUNDS = 12;
 
 async function main() {
   const email = process.env.SUPER_ADMIN_EMAIL;
@@ -9,6 +12,10 @@ async function main() {
 
   if (!email || !password) {
     console.error("SUPER_ADMIN_EMAIL and SUPER_ADMIN_PASSWORD must be set in .env");
+    process.exit(1);
+  }
+  if (!isStrongPassword(password)) {
+    console.error(`SUPER_ADMIN_PASSWORD is too weak: ${PASSWORD_POLICY_MESSAGE}`);
     process.exit(1);
   }
 
@@ -24,7 +31,7 @@ async function main() {
     process.exit(0);
   }
 
-  const passwordHash = await bcrypt.hash(password, 10);
+  const passwordHash = await bcrypt.hash(password, BCRYPT_ROUNDS);
   await User.create({
     vendorId: null,
     branchId: null,
