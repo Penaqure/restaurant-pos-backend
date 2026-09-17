@@ -9,11 +9,9 @@ const {
   ItemAddon,
   TaxRate,
   Order,
-  OrderItem,
-  OrderItemAddon,
 } = require("../../models");
 const counterService = require("../../services/counterService");
-const { computeOrderLines, OrderValidationError } = require("../../services/orderPricingService");
+const { computeOrderLines, insertOrderLines, OrderValidationError } = require("../../services/orderPricingService");
 const logger = require("../../utils/logger");
 
 const itemIncludes = [
@@ -127,29 +125,7 @@ async function createPublicOrder(req, res, next) {
       { transaction: t }
     );
 
-    for (const line of lineData) {
-      const orderItem = await OrderItem.create(
-        {
-          orderId: order.id,
-          menuItemId: line.menuItemId,
-          variantId: line.variantId,
-          itemNameSnapshot: line.itemNameSnapshot,
-          variantNameSnapshot: line.variantNameSnapshot,
-          unitPriceSnapshot: line.unitPriceSnapshot,
-          taxRatePercentSnapshot: line.taxRatePercentSnapshot,
-          quantity: line.quantity,
-          lineTotal: line.lineTotal,
-          notes: line.notes,
-        },
-        { transaction: t }
-      );
-      if (line.addonRows.length > 0) {
-        await OrderItemAddon.bulkCreate(
-          line.addonRows.map((a) => ({ ...a, orderItemId: orderItem.id })),
-          { transaction: t }
-        );
-      }
-    }
+    await insertOrderLines(order.id, lineData, t);
 
     await table.update({ status: "occupied" }, { transaction: t });
 

@@ -10,7 +10,7 @@ const {
 } = require("../../models");
 const { Op } = require("sequelize");
 const counterService = require("../../services/counterService");
-const { computeOrderLines, OrderValidationError } = require("../../services/orderPricingService");
+const { computeOrderLines, insertOrderLines, OrderValidationError } = require("../../services/orderPricingService");
 const { ORDER_TYPES, ORDER_STATUS_TRANSITIONS, ACTIVE_ORDER_STATUSES } = require("../../config/constants");
 const logger = require("../../utils/logger");
 const notificationService = require("../../services/notificationService");
@@ -179,29 +179,7 @@ async function createOrder(req, res, next) {
       { transaction: t }
     );
 
-    for (const line of lineData) {
-      const orderItem = await OrderItem.create(
-        {
-          orderId: order.id,
-          menuItemId: line.menuItemId,
-          variantId: line.variantId,
-          itemNameSnapshot: line.itemNameSnapshot,
-          variantNameSnapshot: line.variantNameSnapshot,
-          unitPriceSnapshot: line.unitPriceSnapshot,
-          taxRatePercentSnapshot: line.taxRatePercentSnapshot,
-          quantity: line.quantity,
-          lineTotal: line.lineTotal,
-          notes: line.notes,
-        },
-        { transaction: t }
-      );
-      if (line.addonRows.length > 0) {
-        await OrderItemAddon.bulkCreate(
-          line.addonRows.map((a) => ({ ...a, orderItemId: orderItem.id })),
-          { transaction: t }
-        );
-      }
-    }
+    await insertOrderLines(order.id, lineData, t);
 
     if (table) {
       await table.update({ status: "occupied" }, { transaction: t });
@@ -410,29 +388,7 @@ async function addItemsToOrder(req, res, next) {
       throw err;
     }
 
-    for (const line of lineData) {
-      const orderItem = await OrderItem.create(
-        {
-          orderId: order.id,
-          menuItemId: line.menuItemId,
-          variantId: line.variantId,
-          itemNameSnapshot: line.itemNameSnapshot,
-          variantNameSnapshot: line.variantNameSnapshot,
-          unitPriceSnapshot: line.unitPriceSnapshot,
-          taxRatePercentSnapshot: line.taxRatePercentSnapshot,
-          quantity: line.quantity,
-          lineTotal: line.lineTotal,
-          notes: line.notes,
-        },
-        { transaction: t }
-      );
-      if (line.addonRows.length > 0) {
-        await OrderItemAddon.bulkCreate(
-          line.addonRows.map((a) => ({ ...a, orderItemId: orderItem.id })),
-          { transaction: t }
-        );
-      }
-    }
+    await insertOrderLines(order.id, lineData, t);
 
     await order.update(
       {

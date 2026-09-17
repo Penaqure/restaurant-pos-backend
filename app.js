@@ -27,6 +27,7 @@ const integrationRoutes = require("./routes/integrationRoutes");
 const sequelize = require("./config/db");
 const logger = require("./utils/logger");
 const notificationService = require("./services/notificationService");
+const pdfService = require("./services/pdfService");
 
 // Fail fast rather than silently running with a forgeable/absent secret --
 // a weak JWT_SECRET lets an attacker mint a valid token for any user,
@@ -97,5 +98,20 @@ sequelize
     logger.error("Unable to connect to the database", { error: err.message });
     process.exit(1);
   });
+
+// pdfService now keeps one Chromium process alive across requests (see its
+// comments) instead of launching a fresh one per PDF -- close it explicitly
+// on a graceful stop (`docker compose down`/`restart` sends SIGTERM) rather
+// than leaving it to be force-killed alongside the process.
+async function shutdown(signal) {
+  logger.info(`${signal} received, shutting down`);
+  await pdfService.closeBrowser();
+  server.close(() => process.exit(0));
+  // Belt and suspenders: if something's still holding a connection open
+  // (e.g. a slow request), don't hang forever waiting for server.close().
+  setTimeout(() => process.exit(0), 5000).unref();
+}
+process.on("SIGTERM", () => shutdown("SIGTERM"));
+process.on("SIGINT", () => shutdown("SIGINT"));
 
 module.exports = app;
