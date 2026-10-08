@@ -15,6 +15,7 @@ const { ORDER_TYPES, ORDER_STATUS_TRANSITIONS, ACTIVE_ORDER_STATUSES } = require
 const logger = require("../../utils/logger");
 const auditService = require("../../services/auditService");
 const notificationService = require("../../services/notificationService");
+const kotPrinterService = require("../../services/kotPrinterService");
 const pdfService = require("../../services/pdfService");
 const { kotHtml, SIZE_PRESETS: KOT_SIZE_PRESETS } = require("../../templates/kotTemplate");
 
@@ -199,6 +200,11 @@ async function createOrder(req, res, next) {
     });
 
     const created = await Order.findByPk(order.id, { include: orderIncludes });
+
+    // Not awaited -- printing is a side effect of placing the order, not
+    // part of the request/response cycle, and must never make the caller
+    // wait on (or fail because of) a slow or offline kitchen printer.
+    kotPrinterService.printKot({ order: created, vendor, branch, table, lineData });
 
     notificationService.emitToVendor(req.vendorId, "order:placed", {
       id: created.id,
@@ -427,6 +433,12 @@ async function addItemsToOrder(req, res, next) {
     });
 
     const updated = await Order.findByPk(order.id, { include: orderIncludes });
+
+    // A ticket for just what's newly added -- see printKot's own comment
+    // for why this isn't a reprint of the whole order.
+    const branch = await Branch.findByPk(order.branchId);
+    kotPrinterService.printKot({ order: updated, vendor, branch, table: updated.table, lineData, isAddition: true });
+
     res.status(201).json(updated);
   } catch (err) {
     await t.rollback();

@@ -13,6 +13,7 @@ const {
 const counterService = require("../../services/counterService");
 const { computeOrderLines, insertOrderLines, OrderValidationError } = require("../../services/orderPricingService");
 const logger = require("../../utils/logger");
+const kotPrinterService = require("../../services/kotPrinterService");
 
 const itemIncludes = [
   { model: ItemVariant, as: "variants" },
@@ -138,6 +139,10 @@ async function createPublicOrder(req, res, next) {
       tableId: table.id,
       totalAmount,
     });
+
+    // Not awaited -- see printKot's own comment on why this must never
+    // block (or fail) the customer's own order confirmation.
+    kotPrinterService.printKot({ order, vendor, branch, table, lineData });
 
     res.status(201).json({ orderNumber: order.orderNumber, totalAmount: order.totalAmount, tableName: table.name });
   } catch (err) {
