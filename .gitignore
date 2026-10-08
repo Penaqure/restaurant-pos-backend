@@ -16,6 +16,9 @@ npm-debug.log*
 # User-uploaded files
 public/uploads/
 
+# Nightly DB backups (see services/backupService.js)
+backups/
+
 # OS/editor cruft
 .DS_Store
 *.swp

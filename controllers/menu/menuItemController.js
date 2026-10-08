@@ -1,6 +1,7 @@
 const path = require("path");
 const { sequelize, MenuItem, MenuCategory, TaxRate, ItemVariant, ItemAddon } = require("../../models");
 const logger = require("../../utils/logger");
+const auditService = require("../../services/auditService");
 const { parseImportFile, toBoolean, toDecimal, toInt } = require("../../services/menuImportService");
 const notificationService = require("../../services/notificationService");
 const { ROLES } = require("../../config/constants");
@@ -124,6 +125,7 @@ async function updateItem(req, res, next) {
     }
 
     const wasAvailable = item.isAvailable;
+    const previousPrice = item.basePrice;
     await item.update({
       ...(categoryId !== undefined && { categoryId }),
       ...(name !== undefined && { name }),
@@ -135,6 +137,17 @@ async function updateItem(req, res, next) {
     });
 
     logger.info("menu_item.updated", { vendorId: req.vendorId, userId: req.user.id, itemId: item.id });
+
+    if (basePrice !== undefined && Number(previousPrice) !== Number(basePrice)) {
+      await auditService.record({
+        vendorId: req.vendorId,
+        userId: req.user.id,
+        action: "menu_item.price_changed",
+        entityType: "MenuItem",
+        entityId: item.id,
+        metadata: { name: item.name, before: previousPrice, after: basePrice },
+      });
+    }
 
     const updated = await MenuItem.findByPk(item.id, { include: itemIncludes });
 

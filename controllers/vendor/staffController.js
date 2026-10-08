@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
 const { User, Role, Branch, Vendor, SubscriptionPlan } = require("../../models");
+const auditService = require("../../services/auditService");
 const logger = require("../../utils/logger");
 const { isStrongPassword, PASSWORD_POLICY_MESSAGE } = require("../../utils/passwordPolicy");
 
@@ -128,6 +129,9 @@ async function updateStaff(req, res, next) {
     const blockedReason = await assertNotLastActiveOwner(req.vendorId, staff, roleId, status);
     if (blockedReason) return res.status(409).json({ message: blockedReason });
 
+    const roleOrStatusChanged = (roleId !== undefined && roleId !== staff.roleId) || (status !== undefined && status !== staff.status);
+    const before = { roleId: staff.roleId, status: staff.status };
+
     const update = {
       ...(firstName !== undefined && { firstName }),
       ...(lastName !== undefined && { lastName }),
@@ -152,6 +156,17 @@ async function updateStaff(req, res, next) {
       changedFields: Object.keys(update).filter((k) => k !== "passwordHash"),
       ...(password && { passwordReset: true }),
     });
+
+    if (roleOrStatusChanged) {
+      await auditService.record({
+        vendorId: req.vendorId,
+        userId: req.user.id,
+        action: "staff.role_or_status_changed",
+        entityType: "User",
+        entityId: staff.id,
+        metadata: { before, after: { roleId: staff.roleId, status: staff.status } },
+      });
+    }
 
     const updated = await User.findByPk(staff.id, { include: staffIncludes });
     res.json(updated);

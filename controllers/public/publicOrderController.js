@@ -59,7 +59,7 @@ async function getPublicMenu(req, res, next) {
     const visibleItems = items.filter((i) => activeCategoryIds.has(i.categoryId));
 
     res.json({
-      vendor: { name: vendor.name, logoUrl: vendor.logoUrl, brandColor: vendor.brandColor },
+      vendor: { name: vendor.name, logoUrl: vendor.logoUrl, brandColor: vendor.brandColor, currency: vendor.currency },
       branch: { id: branch.id, name: branch.name },
       table: { id: table.id, name: table.name, status: table.status },
       categories,

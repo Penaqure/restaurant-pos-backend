@@ -1,9 +1,29 @@
 const { Server } = require("socket.io");
 const jwt = require("jsonwebtoken");
-const cookie = require("cookie");
 const logger = require("../utils/logger");
 
 let io = null;
+
+// A minimal Cookie-header parser -- the one thing the `cookie` package was
+// pulled in for. That package ships ESM-only (no CommonJS build at all),
+// which Node itself can require() fine but Jest's CJS module loader can't,
+// breaking the whole test suite for a single name=value split. Not worth a
+// dependency either way.
+function parseCookies(header) {
+  const out = {};
+  for (const pair of (header || "").split(";")) {
+    const idx = pair.indexOf("=");
+    if (idx === -1) continue;
+    const key = pair.slice(0, idx).trim();
+    const value = pair.slice(idx + 1).trim();
+    try {
+      out[key] = decodeURIComponent(value);
+    } catch {
+      out[key] = value;
+    }
+  }
+  return out;
+}
 
 // Every connected staff member joins a room for their vendor (everyone) and
 // a room for their vendor+role, so an event can be restricted to only the
@@ -34,7 +54,7 @@ function init(httpServer, frontendUrl) {
   // supplied `auth.token`, which would require page JS to hold the token.
   io.use((socket, next) => {
     try {
-      const cookies = cookie.parse(socket.handshake.headers.cookie || "");
+      const cookies = parseCookies(socket.handshake.headers.cookie);
       const token = cookies.billing_token;
       if (!token) return next(new Error("Not authenticated"));
       const payload = jwt.verify(token, process.env.JWT_SECRET, { algorithms: ["HS256"] });

@@ -22,12 +22,14 @@ const discountRoutes = require("./routes/discountRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
 const reportRoutes = require("./routes/reportRoutes");
 const vendorSettingsRoutes = require("./routes/vendorSettingsRoutes");
+const auditLogRoutes = require("./routes/auditLogRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const integrationRoutes = require("./routes/integrationRoutes");
 const sequelize = require("./config/db");
 const logger = require("./utils/logger");
 const notificationService = require("./services/notificationService");
 const pdfService = require("./services/pdfService");
+const backupService = require("./services/backupService");
 
 // Fail fast rather than silently running with a forgeable/absent secret --
 // a weak JWT_SECRET lets an attacker mint a valid token for any user,
@@ -78,40 +80,50 @@ app.use("/api/discounts", discountRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/reports", reportRoutes);
 app.use("/api/vendor-settings", vendorSettingsRoutes);
+app.use("/api/audit-log", auditLogRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/integrations", integrationRoutes);
 
 app.use(notFound);
 app.use(errorHandler);
 
-const server = http.createServer(app);
-const PORT = process.env.PORT || 5000;
+// Everything below only runs when this file is executed directly (`node
+// app.js`, which is what the Dockerfile/nodemon do) -- not when it's
+// `require()`'d, e.g. by the test suite via supertest, which just needs the
+// configured `app` and must not also connect to the real DB, bind the real
+// port, open a socket.io server, or schedule backup runs.
+if (require.main === module) {
+  const server = http.createServer(app);
+  const PORT = process.env.PORT || 5000;
 
-sequelize
-  .authenticate()
-  .then(() => {
-    logger.info("Database connection established");
-    notificationService.init(server, FRONTEND_URL);
-    server.listen(PORT, () => logger.info(`Server listening on port ${PORT}`));
-  })
-  .catch((err) => {
-    logger.error("Unable to connect to the database", { error: err.message });
-    process.exit(1);
-  });
+  sequelize
+    .authenticate()
+    .then(() => {
+      logger.info("Database connection established");
+      notificationService.init(server, FRONTEND_URL);
+      backupService.scheduleBackups();
+      server.listen(PORT, () => logger.info(`Server listening on port ${PORT}`));
+    })
+    .catch((err) => {
+      logger.error("Unable to connect to the database", { error: err.message });
+      process.exit(1);
+    });
 
-// pdfService now keeps one Chromium process alive across requests (see its
-// comments) instead of launching a fresh one per PDF -- close it explicitly
-// on a graceful stop (`docker compose down`/`restart` sends SIGTERM) rather
-// than leaving it to be force-killed alongside the process.
-async function shutdown(signal) {
-  logger.info(`${signal} received, shutting down`);
-  await pdfService.closeBrowser();
-  server.close(() => process.exit(0));
-  // Belt and suspenders: if something's still holding a connection open
-  // (e.g. a slow request), don't hang forever waiting for server.close().
-  setTimeout(() => process.exit(0), 5000).unref();
+  // pdfService now keeps one Chromium process alive across requests (see its
+  // comments) instead of launching a fresh one per PDF -- close it explicitly
+  // on a graceful stop (`docker compose down`/`restart` sends SIGTERM) rather
+  // than leaving it to be force-killed alongside the process.
+  const shutdown = async (signal) => {
+    logger.info(`${signal} received, shutting down`);
+    backupService.stopBackups();
+    await pdfService.closeBrowser();
+    server.close(() => process.exit(0));
+    // Belt and suspenders: if something's still holding a connection open
+    // (e.g. a slow request), don't hang forever waiting for server.close().
+    setTimeout(() => process.exit(0), 5000).unref();
+  };
+  process.on("SIGTERM", () => shutdown("SIGTERM"));
+  process.on("SIGINT", () => shutdown("SIGINT"));
 }
-process.on("SIGTERM", () => shutdown("SIGTERM"));
-process.on("SIGINT", () => shutdown("SIGINT"));
 
 module.exports = app;

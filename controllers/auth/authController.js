@@ -140,6 +140,7 @@ async function me(req, res, next) {
             slug: user.vendor.slug,
             logoUrl: user.vendor.logoUrl,
             brandColor: user.vendor.brandColor,
+            currency: user.vendor.currency,
             defaultBillSize: user.vendor.defaultBillSize,
             planLimits,
             branchCount,

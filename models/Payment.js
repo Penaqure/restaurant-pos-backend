@@ -16,6 +16,12 @@ module.exports = (sequelize, DataTypes) => {
       amount: { type: DataTypes.DECIMAL(10, 2), allowNull: false },
       referenceNumber: { type: DataTypes.STRING, allowNull: true },
       status: { type: DataTypes.ENUM("recorded", "void"), allowNull: false, defaultValue: "recorded" },
+      // "refund" rows are their own entries (see refundPayment in
+      // paymentController.js) rather than mutations of the original payment
+      // -- keeps the original row an untouched record of what was actually
+      // collected, with the refund as a separate, auditable transaction.
+      type: { type: DataTypes.ENUM("payment", "refund"), allowNull: false, defaultValue: "payment" },
+      relatedPaymentId: { type: DataTypes.UUID, allowNull: true },
       recordedBy: { type: DataTypes.UUID, allowNull: false },
       paidAt: { type: DataTypes.DATE, allowNull: false, defaultValue: DataTypes.NOW },
       notes: { type: DataTypes.STRING, allowNull: true },
@@ -35,6 +41,8 @@ module.exports = (sequelize, DataTypes) => {
     Payment.belongsTo(models.Vendor, { foreignKey: "vendorId", as: "vendor" });
     Payment.belongsTo(models.Bill, { foreignKey: "billId", as: "bill" });
     Payment.belongsTo(models.User, { foreignKey: "recordedBy", as: "recorder" });
+    Payment.belongsTo(models.Payment, { foreignKey: "relatedPaymentId", as: "relatedPayment" });
+    Payment.hasMany(models.Payment, { foreignKey: "relatedPaymentId", as: "refunds" });
   };
 
   return Payment;

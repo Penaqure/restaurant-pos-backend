@@ -14,6 +14,7 @@ const canPay = authorizeRoles(ROLES.OWNER, ROLES.MANAGER, ROLES.CASHIER);
 
 router.get("/", canPay, paymentController.listPayments);
 router.post("/", canPay, paymentController.recordPayment);
+router.post("/:id/refund", canPay, paymentController.refundPayment);
 router.delete("/:id", canPay, paymentController.voidPayment);
 
 module.exports = router;

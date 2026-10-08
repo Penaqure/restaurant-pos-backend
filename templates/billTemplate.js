@@ -1,3 +1,5 @@
+const { getCurrencySymbol } = require("../utils/currency");
+
 function escapeHtml(str) {
   return String(str ?? "").replace(/[&<>"']/g, (c) => ({
     "&": "&amp;",
@@ -32,6 +34,7 @@ function billHtml({ bill, order, vendor, branch, logoDataUri, size = "a4", showG
   const preset = SIZE_PRESETS[size] || SIZE_PRESETS.a4;
   const isReceipt = preset.mode === "receipt";
   const brandColor = /^#[0-9a-fA-F]{6}$/.test(vendor.brandColor) ? vendor.brandColor : "#c81e1e";
+  const currencySymbol = getCurrencySymbol(vendor.currency);
 
   const itemRows = order.items
     .map((item) => {
@@ -93,8 +96,8 @@ function billHtml({ bill, order, vendor, branch, logoDataUri, size = "a4", showG
 
   const paymentBadge = {
     paid: "Paid",
-    partial: `Partially paid · Balance ₹${money(bill.balanceDue)}`,
-    unpaid: `Unpaid · ₹${money(bill.balanceDue)} due`,
+    partial: `Partially paid · Balance ${currencySymbol}${money(bill.balanceDue)}`,
+    unpaid: `Unpaid · ${currencySymbol}${money(bill.balanceDue)} due`,
     refunded: "Refunded",
   }[bill.paymentStatus];
 

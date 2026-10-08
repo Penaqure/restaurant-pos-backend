@@ -1,4 +1,5 @@
 const { Discount } = require("../../models");
+const auditService = require("../../services/auditService");
 const logger = require("../../utils/logger");
 
 async function listDiscounts(req, res, next) {
@@ -31,6 +32,14 @@ async function createDiscount(req, res, next) {
       usageLimit: usageLimit || null,
     });
     logger.info("discount.created", { vendorId: req.vendorId, userId: req.user.id, discountId: discount.id, code: discount.code });
+    await auditService.record({
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      action: "discount.created",
+      entityType: "Discount",
+      entityId: discount.id,
+      metadata: { code: discount.code, type: discount.type, value: discount.value },
+    });
     res.status(201).json(discount);
   } catch (err) {
     next(err);
@@ -43,6 +52,7 @@ async function updateDiscount(req, res, next) {
     if (!discount) return res.status(404).json({ message: "Discount not found" });
 
     const { isActive, value, minOrderAmount, validFrom, validTo, usageLimit } = req.body;
+    const before = { isActive: discount.isActive, value: discount.value, minOrderAmount: discount.minOrderAmount };
     await discount.update({
       ...(isActive !== undefined && { isActive }),
       ...(value !== undefined && { value }),
@@ -52,6 +62,14 @@ async function updateDiscount(req, res, next) {
       ...(usageLimit !== undefined && { usageLimit }),
     });
     logger.info("discount.updated", { vendorId: req.vendorId, userId: req.user.id, discountId: discount.id, code: discount.code });
+    await auditService.record({
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      action: "discount.updated",
+      entityType: "Discount",
+      entityId: discount.id,
+      metadata: { code: discount.code, before, after: { isActive: discount.isActive, value: discount.value, minOrderAmount: discount.minOrderAmount } },
+    });
     res.json(discount);
   } catch (err) {
     next(err);
@@ -62,8 +80,17 @@ async function deleteDiscount(req, res, next) {
   try {
     const discount = await Discount.findOne({ where: { id: req.params.id, vendorId: req.vendorId } });
     if (!discount) return res.status(404).json({ message: "Discount not found" });
+    const { id, code } = discount;
     await discount.destroy();
-    logger.info("discount.deleted", { vendorId: req.vendorId, userId: req.user.id, discountId: discount.id, code: discount.code });
+    logger.info("discount.deleted", { vendorId: req.vendorId, userId: req.user.id, discountId: id, code });
+    await auditService.record({
+      vendorId: req.vendorId,
+      userId: req.user.id,
+      action: "discount.deleted",
+      entityType: "Discount",
+      entityId: id,
+      metadata: { code },
+    });
     res.status(204).send();
   } catch (err) {
     next(err);

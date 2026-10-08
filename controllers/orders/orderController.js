@@ -13,6 +13,7 @@ const counterService = require("../../services/counterService");
 const { computeOrderLines, insertOrderLines, OrderValidationError } = require("../../services/orderPricingService");
 const { ORDER_TYPES, ORDER_STATUS_TRANSITIONS, ACTIVE_ORDER_STATUSES } = require("../../config/constants");
 const logger = require("../../utils/logger");
+const auditService = require("../../services/auditService");
 const notificationService = require("../../services/notificationService");
 const pdfService = require("../../services/pdfService");
 const { kotHtml, SIZE_PRESETS: KOT_SIZE_PRESETS } = require("../../templates/kotTemplate");
@@ -249,6 +250,20 @@ async function updateOrderStatus(req, res, next) {
 
     if (order.tableId && (status === "completed" || status === "cancelled")) {
       await releaseTableIfIdle(order.tableId, t);
+    }
+
+    if (status === "cancelled") {
+      await auditService.record(
+        {
+          vendorId: req.vendorId,
+          userId: req.user.id,
+          action: "order.cancelled",
+          entityType: "Order",
+          entityId: order.id,
+          metadata: { orderNumber: order.orderNumber, from: previousStatus },
+        },
+        t
+      );
     }
 
     await t.commit();
