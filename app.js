@@ -25,6 +25,7 @@ const vendorSettingsRoutes = require("./routes/vendorSettingsRoutes");
 const auditLogRoutes = require("./routes/auditLogRoutes");
 const publicRoutes = require("./routes/publicRoutes");
 const integrationRoutes = require("./routes/integrationRoutes");
+const chatbotRoutes = require("./routes/chatbotRoutes");
 const sequelize = require("./config/db");
 const logger = require("./utils/logger");
 const notificationService = require("./services/notificationService");
@@ -83,6 +84,7 @@ app.use("/api/vendor-settings", vendorSettingsRoutes);
 app.use("/api/audit-log", auditLogRoutes);
 app.use("/api/public", publicRoutes);
 app.use("/api/integrations", integrationRoutes);
+app.use("/api/chatbot", chatbotRoutes);
 
 app.use(notFound);
 app.use(errorHandler);

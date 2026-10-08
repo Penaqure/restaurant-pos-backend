@@ -25,4 +25,15 @@ const publicMenuLimiter = limiter({ windowMs: 60 * 1000, limit: 60 });
 // browsing to blunt spam/DoS from a single table's QR link.
 const publicOrderLimiter = limiter({ windowMs: 60 * 1000, limit: 10 });
 
-module.exports = { apiLimiter, loginLimiter, publicMenuLimiter, publicOrderLimiter };
+// The Q&A assistant runs an aggregate SQL query per question -- not costly
+// individually, but still its own limiter (independent of the already-generous
+// apiLimiter) so a stuck client auto-retrying doesn't hammer the DB.
+const chatbotLimiter = limiter({ windowMs: 15 * 60 * 1000, limit: 100 });
+
+module.exports = {
+  apiLimiter,
+  loginLimiter,
+  publicMenuLimiter,
+  publicOrderLimiter,
+  chatbotLimiter,
+};
